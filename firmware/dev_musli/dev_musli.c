@@ -14,12 +14,23 @@
 #define MUSLI_SPI_TX_PIN	11
 
 #define MUSLI_CMD_READY 0x00
-#define MUSLI_CMD_CONFIG_PORT 0x01
-#define MUSLI_CMD_CONFIG_PORT_PIN 0x02
-#define MUSLI_CMD_GPIO_PUT_PIN 0x10
-#define MUSLI_CMD_GPIO_GET_PIN 0x11
-#define MUSLI_CMD_SPI_WRITE 0x20
-#define MUSLI_CMD_SPI_READ 0x21
+#define MUSLI_CMD_INIT 0x01
+
+#define MUSLI_CMD_GPIO_SET_DIR 0x10
+#define MUSLI_CMD_GPIO_DISABLE_PULLS 0x11
+#define MUSLI_CMD_GPIO_PULL_UP 0x12
+#define MUSLI_CMD_GPIO_PULL_DOWN 0x13
+
+#define MUSLI_CMD_GPIO_GET 0x20
+#define MUSLI_CMD_GPIO_PUT 0x21
+
+#define MUSLI_CMD_SPI_READ 0x80
+#define MUSLI_CMD_SPI_WRITE 0x81
+
+#define MUSLI_CMD_REBOOT 0xf0
+
+void init_ldprog(void);
+void init_gpio(void);
 
 #include <stdio.h>
 #include <strings.h>
@@ -27,6 +38,7 @@
 // Pico
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
+#include "hardware/watchdog.h"
 
 // For memcpy
 #include <string.h>
@@ -560,31 +572,41 @@ void ep0_in_handler(uint8_t *buf, uint16_t len) {
 }
 
 void ep0_out_handler(uint8_t *buf, uint16_t len) {
-    ;
 }
 
 // Device specific functions
 void ep1_out_handler(uint8_t *buf, uint16_t len) {
-//	printf("RX %d bytes from host\n", len);
 
-//	printf("[%x %x %x %x]\n", buf[0], buf[1], buf[2], buf[3]);
+	//	printf("RX %d bytes from host\n", len);
+	//	printf("[%x %x %x %x]\n", buf[0], buf[1], buf[2], buf[3]);
 
-	if (buf[0] == MUSLI_CMD_CONFIG_PORT) {
-		printf("gpio input/output mask set to: %d\n", buf[1]);
-		gpio_set_dir_all_bits(buf[1]);
+	if (buf[0] == MUSLI_CMD_INIT) {
+		printf("init %d\n", buf[1]);
+		if (buf[1] == 0x00) init_ldprog();
+		if (buf[1] == 0x01) init_gpio();
 	}
 
-	if (buf[0] == MUSLI_CMD_CONFIG_PORT_PIN) {
+	if (buf[0] == MUSLI_CMD_GPIO_SET_DIR) {
 		printf("gpio pin %d direction set to: %d\n", buf[1], buf[2]);
 		gpio_set_dir(buf[1], buf[2]);
 	}
 
-	if (buf[0] == MUSLI_CMD_GPIO_PUT_PIN) {
-//		printf("writing %d to gpio %d ...\n", buf[2], buf[1]);
-		gpio_put(buf[1], buf[2]);
+	if (buf[0] == MUSLI_CMD_GPIO_DISABLE_PULLS) {
+		printf("disabling pulls for gpio pin %d\n", buf[1]);
+		gpio_disable_pulls(buf[1]);
 	}
 
-	if (buf[0] == MUSLI_CMD_GPIO_GET_PIN) {
+	if (buf[0] == MUSLI_CMD_GPIO_PULL_UP) {
+		printf("enabling pull-up for gpio pin %d\n", buf[1]);
+		gpio_pull_up(buf[1]);
+	}
+
+	if (buf[0] == MUSLI_CMD_GPIO_PULL_DOWN) {
+		printf("enabling pull-down for gpio pin %d\n", buf[1]);
+		gpio_pull_down(buf[1]);
+	}
+
+	if (buf[0] == MUSLI_CMD_GPIO_GET) {
 		uint8_t lbuf[64];
 		bzero(lbuf, 64);
 		uint8_t val = gpio_get(buf[1]);
@@ -597,9 +619,22 @@ void ep1_out_handler(uint8_t *buf, uint16_t len) {
 		usb_start_transfer(ep, lbuf, len);
 	}
 
+	if (buf[0] == MUSLI_CMD_GPIO_PUT) {
+		int pd = gpio_is_pulled_down(buf[1]);
+		int pu = gpio_is_pulled_up(buf[1]);
+		printf("writing %d to gpio %d [pd: %d pu: %d] ...\n", buf[2], buf[1],
+			pd, pu);
+		gpio_put(buf[1], buf[2]);
+	}
+
 	if (buf[0] == MUSLI_CMD_SPI_WRITE) {
 //		printf("writing %d bytes to spi ...\n", buf[1]);
 		spi_write_blocking(spi1, buf+4, buf[1]);
+	}
+
+	if (buf[0] == MUSLI_CMD_REBOOT) {
+		printf("rebooting ...\n", buf[1]);
+		watchdog_reboot(0, 0, 0);
 	}
 
 	// Get ready to rx again from host
@@ -612,6 +647,40 @@ void ep2_in_handler(uint8_t *buf, uint16_t len) {
 //	usb_start_transfer(usb_get_endpoint_configuration(EP1_OUT_ADDR), NULL, 64);
 }
 
+void init_ldprog(void) {
+
+	gpio_set_function(0, GPIO_FUNC_UART);
+	gpio_set_function(1, GPIO_FUNC_UART);
+
+	printf("init_ldprog\n");
+
+	gpio_init(MUSLI_SPI_CSN_PIN);
+	gpio_disable_pulls(MUSLI_SPI_CSN_PIN);
+
+	gpio_set_function(MUSLI_SPI_RX_PIN, GPIO_FUNC_SPI);
+	gpio_set_function(MUSLI_SPI_SCK_PIN, GPIO_FUNC_SPI);
+	gpio_set_function(MUSLI_SPI_TX_PIN, GPIO_FUNC_SPI);
+	spi_init(spi1, 1000 * 1000);
+
+	gpio_init(2);
+	gpio_init(3);
+	gpio_disable_pulls(2);
+	gpio_disable_pulls(3);
+
+}
+
+void init_gpio(void) {
+	printf("init_gpio\n");
+	for (int i = 0; i <= 3; i++) {
+		gpio_init(i);
+		gpio_disable_pulls(i);
+	}
+	for (int i = 8; i <= 11; i++) {
+		gpio_init(i);
+		gpio_disable_pulls(i);
+	}
+}
+
 int main(void) {
 
 	stdio_init_all();
@@ -619,19 +688,7 @@ int main(void) {
 	printf("usb_device_init ...\n");
 	usb_device_init();
 
-	printf("spi_init ...\n");
-
-	gpio_init(MUSLI_SPI_CSN_PIN);
-
-	gpio_set_function(MUSLI_SPI_RX_PIN, GPIO_FUNC_SPI);
-//	gpio_set_function(MUSLI_SPI_CSN_PIN, GPIO_FUNC_SPI);
-	gpio_set_function(MUSLI_SPI_SCK_PIN, GPIO_FUNC_SPI);
-	gpio_set_function(MUSLI_SPI_TX_PIN, GPIO_FUNC_SPI);
-	spi_init(spi1, 1000 * 1000);
-
-	printf("gpio_init ...\n");
-	gpio_init(2);
-	gpio_init(3);
+	init_ldprog();
 
 	printf("waiting for usb configuration ...\n");
 	// Wait until configured
