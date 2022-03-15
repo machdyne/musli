@@ -649,7 +649,7 @@ void ep1_out_handler(uint8_t *buf, uint16_t len) {
 	if (buf[0] == MUSLI_CMD_SPI_READ) {
 		uint8_t lbuf[64];
 		bzero(lbuf, 64);
-		printf("reading %d bytes from spi [mode: %d] ...\n", buf[1], spi_mode);
+	//	printf("reading %d bytes from spi [mode: %d] ...\n", buf[1], spi_mode);
 		if (spi_mode == SPI_MODE_HW)
 			spi_read_blocking(spi1, 0, lbuf, buf[1]);
 		else if (spi_mode == SPI_MODE_PIO)
@@ -660,7 +660,7 @@ void ep1_out_handler(uint8_t *buf, uint16_t len) {
 	}
 
 	if (buf[0] == MUSLI_CMD_SPI_WRITE) {
-		printf("writing %d bytes to spi [mode: %d] ...\n", buf[1], spi_mode);
+	//	printf("writing %d bytes to spi [mode: %d] ...\n", buf[1], spi_mode);
 		if (spi_mode == SPI_MODE_HW)
 			spi_write_blocking(spi1, buf+4, buf[1]);
 		else if (spi_mode == SPI_MODE_PIO)
