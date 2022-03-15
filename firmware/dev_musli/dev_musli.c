@@ -26,11 +26,12 @@
 
 #define MUSLI_CMD_SPI_READ 0x80
 #define MUSLI_CMD_SPI_WRITE 0x81
+#define MUSLI_CMD_CFG_PIO_SPI 0x8f
 
 #define MUSLI_CMD_REBOOT 0xf0
 
-void init_ldprog(void);
-void init_gpio(void);
+#define SPI_MODE_HW 1
+#define SPI_MODE_PIO 2
 
 #include <stdio.h>
 #include <strings.h>
@@ -39,6 +40,23 @@ void init_gpio(void);
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include "hardware/watchdog.h"
+#include "pico/stdlib.h"
+#include "pico/binary_info.h"
+#include "pio_spi.h"
+
+uint8_t spi_mode = SPI_MODE_HW;
+
+void init_ldprog(void);
+void init_gpio(void);
+void init_pio_spi(void);
+void pio_spi_cfg(uint8_t pin_sck, uint8_t pin_mosi, uint8_t pin_miso);
+
+uint8_t spi_pio_offset;
+
+pio_spi_inst_t spi_pio = {
+	.pio = pio0,
+	.sm = 0
+};
 
 // For memcpy
 #include <string.h>
@@ -584,6 +602,7 @@ void ep1_out_handler(uint8_t *buf, uint16_t len) {
 		printf("init %d\n", buf[1]);
 		if (buf[1] == 0x00) init_ldprog();
 		if (buf[1] == 0x01) init_gpio();
+		if (buf[1] == 0x02) init_pio_spi();
 	}
 
 	if (buf[0] == MUSLI_CMD_GPIO_SET_DIR) {
@@ -627,9 +646,29 @@ void ep1_out_handler(uint8_t *buf, uint16_t len) {
 		gpio_put(buf[1], buf[2]);
 	}
 
+	if (buf[0] == MUSLI_CMD_SPI_READ) {
+		uint8_t lbuf[64];
+		bzero(lbuf, 64);
+		printf("reading %d bytes from spi [mode: %d] ...\n", buf[1], spi_mode);
+		if (spi_mode == SPI_MODE_HW)
+			spi_read_blocking(spi1, 0, lbuf, buf[1]);
+		else if (spi_mode == SPI_MODE_PIO)
+			pio_spi_read8_blocking(&spi_pio, lbuf, buf[1]);
+		struct usb_endpoint_configuration *ep =
+			usb_get_endpoint_configuration(EP2_IN_ADDR);
+		usb_start_transfer(ep, lbuf, len);
+	}
+
 	if (buf[0] == MUSLI_CMD_SPI_WRITE) {
-//		printf("writing %d bytes to spi ...\n", buf[1]);
-		spi_write_blocking(spi1, buf+4, buf[1]);
+		printf("writing %d bytes to spi [mode: %d] ...\n", buf[1], spi_mode);
+		if (spi_mode == SPI_MODE_HW)
+			spi_write_blocking(spi1, buf+4, buf[1]);
+		else if (spi_mode == SPI_MODE_PIO)
+			pio_spi_write8_blocking(&spi_pio, buf+4, buf[1]);
+	}
+
+	if (buf[0] == MUSLI_CMD_CFG_PIO_SPI) {
+		pio_spi_cfg(buf[1], buf[2], buf[3]);
 	}
 
 	if (buf[0] == MUSLI_CMD_REBOOT) {
@@ -648,6 +687,10 @@ void ep2_in_handler(uint8_t *buf, uint16_t len) {
 }
 
 void init_ldprog(void) {
+
+	spi_mode = SPI_MODE_HW;
+
+	uart_init(uart0, 115200);
 
 	gpio_set_function(0, GPIO_FUNC_UART);
 	gpio_set_function(1, GPIO_FUNC_UART);
@@ -671,6 +714,8 @@ void init_ldprog(void) {
 
 void init_gpio(void) {
 	printf("init_gpio\n");
+	spi_deinit(spi1);
+	uart_deinit(uart0);
 	for (int i = 0; i <= 3; i++) {
 		gpio_init(i);
 		gpio_disable_pulls(i);
@@ -681,12 +726,44 @@ void init_gpio(void) {
 	}
 }
 
+void init_pio_spi(void) {
+
+	spi_mode = SPI_MODE_PIO;
+
+	printf("init_pio_spi\n");
+
+	for (int i = 8; i <= 11; i++) {
+		gpio_init(i);
+		gpio_disable_pulls(i);
+	}
+
+}
+
+void pio_spi_cfg(uint8_t pin_sck, uint8_t pin_mosi, uint8_t pin_miso) {
+
+	printf("pio_spi sck %d mosi %d miso %d\n", pin_sck, pin_mosi, pin_miso);
+
+  	pio_spi_init(spi_pio.pio, spi_pio.sm, spi_pio_offset,
+		8,       // 8 bits per SPI frame
+		31.25f,  // 1 MHz @ 125 clk_sys
+		false,   // CPHA = 0
+		false,   // CPOL = 0
+		pin_sck,
+		pin_mosi,
+		pin_miso
+	);
+}
+
 int main(void) {
 
 	stdio_init_all();
 	printf("Musli initializing ...\n");
 	printf("usb_device_init ...\n");
 	usb_device_init();
+
+	printf("loading spi_pio ...\n");
+	spi_pio_offset = pio_add_program(spi_pio.pio, &spi_cpha0_program);
+	printf("loaded PIO program at %d\n", spi_pio_offset);
 
 	init_ldprog();
 
