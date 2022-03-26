@@ -53,6 +53,13 @@ $ cmake ..
 $ make
 ```
 
+Note: If your Müsli has a non-Winbond flash chip, you may need to build the firmware using the following commands:
+
+```
+$ cmake .. -DPICO_DEFAULT_BOOT_STAGE2_FILE=/your-pico-sdk-directory/pico-sdk/src/rp2_common/boot_stage2/boot2_generic_03h.S
+$ make
+```
+
 This will create an ELF file that can be programmed via SWD as well as a UF2 file that can be copied to the USB Mass Storage Device when boot mode is selected (by holding the Müsli BOOT button during power-up).
 
 ### Resources
