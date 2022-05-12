@@ -36,9 +36,9 @@ SUBSYSTEM=="usb", GROUP="plugdev", ATTR{idVendor}=="2e8a", ATTRS{idProduct}=="10
 
 This repo contains example firmware based on the Raspberry Pi Pico USB examples.
 
-The host firmware example is currently largely unchanged and will display keyboard and mouse HID reports over UART0.
+The host firmware example [host\_musli\_kbd](firmware/host_musli_kbd) sends USB keyboard keypresses as ascii characters over the UART. It also acts as an SPI master and sends PS2 scancodes over the SPI pins. See the [Zucker SOC](https://github.com/machdyne/zucker) for example Verilog code that acts as an SPI slave to receive the scancodes.
 
-The device firmware example implements a Vendor Specific Device that provides commands for bitbanging GPIO and performing SPI master data transfers. This firmware is used by [ldprog](http://github.com/machdyne/ldprog) to program Lone Dynamics FPGA boards.
+The device firmware example [dev\_musli](firmware/dev_musli) implements a Vendor Specific Device that provides commands for bitbanging GPIO and performing SPI master data transfers. This firmware is used by [ldprog](http://github.com/machdyne/ldprog) to program Lone Dynamics FPGA boards.
 
 To build the firmware you will need to install the [Raspberry Pi Pico SDK](https://github.com/raspberrypi/pico-sdk).
 
@@ -82,9 +82,9 @@ This will create an ELF file that can be programmed via SWD as well as a UF2 fil
 | 5 | GND | | |
 | 6 | PWR3V3 | | |
 | 7 | GPIO8 | SPI1 RX | |
-| 8 | GPIO9 | SS | |
-| 9 | GPIO10 | SPI1 SCK | |
-| 10 | GPIO11 | SPI1 TX | |
+| 8 | GPIO9 | SS | SS |
+| 9 | GPIO10 | SPI1 SCK | SPI1 SCK |
+| 10 | GPIO11 | SPI1 TX | SPI1 TX |
 | 11 | GND | | |
 | 12 | PWR3V3 | | |
 

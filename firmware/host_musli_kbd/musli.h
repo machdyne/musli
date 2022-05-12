@@ -1,0 +1,4 @@
+#define MUSLI_SPI_RX_PIN   8
+#define MUSLI_SPI_CSN_PIN  9
+#define MUSLI_SPI_SCK_PIN  10
+#define MUSLI_SPI_TX_PIN   11
