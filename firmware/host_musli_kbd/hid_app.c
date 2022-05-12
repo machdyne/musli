@@ -193,7 +193,7 @@ void spi_send_scancode(uint8_t code) {
 
 	uint8_t buf[1];
 
-	printf("[%.2x]", code);
+	// printf("[%.2x]", code);
 
 	buf[0] = code;
 
