@@ -716,11 +716,7 @@ void init_gpio(void) {
 	printf("init_gpio\n");
 	spi_deinit(spi1);
 	uart_deinit(uart0);
-	for (int i = 0; i <= 3; i++) {
-		gpio_init(i);
-		gpio_disable_pulls(i);
-	}
-	for (int i = 8; i <= 11; i++) {
+	for (int i = 0; i <= 29; i++) {
 		gpio_init(i);
 		gpio_disable_pulls(i);
 	}
@@ -732,7 +728,7 @@ void init_pio_spi(void) {
 
 	printf("init_pio_spi\n");
 
-	for (int i = 8; i <= 11; i++) {
+	for (int i = 8; i <= 29; i++) {
 		gpio_init(i);
 		gpio_disable_pulls(i);
 	}
