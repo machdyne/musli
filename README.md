@@ -4,6 +4,8 @@
 
 Müsli is a 12-pin Pmod™ compatible module with a RP2040 MCU and a USB type A port. Müsli can be configured to act as a USB host or USB device. In host mode the 5V USB VBUS power is supplied by a boost converter.
 
+![Müsli PMOD](https://github.com/machdyne/musli/blob/e70e713858b95e13f05cc3f039f807e35af1ba9d/musli.png)
+
 This repo contains documentation, schematics and example host/device firmware.
 
 Find more information on the [Müsli product page](https://machdyne.com/product/musli-usb-pmod/).
