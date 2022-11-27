@@ -75,6 +75,11 @@ This will create an ELF file that can be programmed via SWD as well as a UF2 fil
 
 ### 12-pin PMOD Header
 
+```
+1  2  3  4  5  6
+7  8  9  10 11 12
+```
+
 | Pin | Signal | Device Firmware | Host Firmware |
 | --- | ------ | --------------- | ------------- |
 | 1 | GPIO0 | UART0 TX | UART0 TX |
