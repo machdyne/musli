@@ -25,7 +25,7 @@
 
 #include "tusb.h"
 
-//#if CFG_TUH_MSC
+#if CFG_TUH_MSC
 
 //--------------------------------------------------------------------+
 // MACRO TYPEDEF CONSTANT ENUM DECLARATION
@@ -103,4 +103,4 @@ void tuh_msc_umount_cb(uint8_t dev_addr)
 //  }
 }
 
-//#endif
+#endif
